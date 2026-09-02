@@ -89,7 +89,7 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     await signOutGoogle();
-    await signOut(auth);
+    if (auth) await signOut(auth);
   }
 
   return (

@@ -1,7 +1,7 @@
 import { AI } from "../config/env";
 
 /**
- * Streaming client for the Claude Messages API.
+ * Streaming client for the Gemini GenerateContent API.
  *
  * Why XMLHttpRequest and not fetch: React Native's fetch is a polyfill over
  * XHR and does not implement `Response.body`, so `res.body.getReader()` is
@@ -15,11 +15,10 @@ import { AI } from "../config/env";
  *   direct — key embedded in the bundle. __DEV__ only, enforced in config/env.
  *
  * Verify the current model ids and request shape against
- * https://docs.claude.com/en/api/overview — they move faster than this file.
+ * https://ai.google.dev/gemini-api/docs/models/gemini — they move faster than this file.
  */
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
+const getGeminiUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 const REQUEST_TIMEOUT_MS = 60000;
 
 export class AiError extends Error {
@@ -42,12 +41,11 @@ function endpointAndHeaders() {
   }
   if (AI.mode === "direct") {
     return {
-      url: ANTHROPIC_URL,
+      url: getGeminiUrl(AI.model),
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
-        "x-api-key": AI.devApiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
+        "x-goog-api-key": AI.devApiKey,
       },
     };
   }
@@ -102,12 +100,19 @@ function drainSse(buffer, onDelta, state) {
         continue; // tolerate keepalive noise
       }
 
-      if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
-        state.text += event.delta.text;
-        onDelta?.(event.delta.text, state.text);
-      } else if (event.type === "message_delta" && event.delta?.stop_reason) {
-        state.stopReason = event.delta.stop_reason;
-      } else if (event.type === "error") {
+      const candidate = event.candidates?.[0];
+      const chunkText = candidate?.content?.parts?.[0]?.text;
+
+      if (chunkText) {
+        state.text += chunkText;
+        onDelta?.(chunkText, state.text);
+      }
+
+      if (candidate?.finishReason) {
+        state.stopReason = candidate.finishReason;
+      }
+
+      if (event.error) {
         state.error = new AiError(
           event.error?.message || "The model returned an error.",
           { kind: "server" }
@@ -123,14 +128,22 @@ function drainSse(buffer, onDelta, state) {
  * passing the event stream through.
  */
 function textFromJsonResponse(raw) {
-  const parsed = JSON.parse(raw);
-  if (Array.isArray(parsed.content)) {
-    return parsed.content
-      .filter((block) => block.type === "text")
-      .map((block) => block.text)
-      .join("");
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.candidates)) {
+      return parsed.candidates[0]?.content?.parts?.[0]?.text || "";
+    }
+    // Handle array response if the proxy didn't stream but returned a JSON array
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].candidates) {
+      let combined = "";
+      for (const item of parsed) {
+        combined += item.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      }
+      return combined;
+    }
+  } catch {
+    // fall through
   }
-  if (typeof parsed.text === "string") return parsed.text;
   return "";
 }
 
@@ -209,13 +222,19 @@ export function streamMessage({ system, messages, maxTokens = 1024, onDelta }) {
       if (cancelled) reject(new AiError("Cancelled.", { kind: "aborted" }));
     };
 
+    const contents = messages.map(m => ({
+      role: m.role === "assistant" ? "model" : m.role,
+      parts: [{ text: m.content }]
+    }));
+    
+    const systemInstruction = system ? { parts: [{ text: system }] } : undefined;
+
     xhr.send(
       JSON.stringify({
-        model: AI.model,
-        max_tokens: maxTokens,
-        stream: true,
-        system,
-        messages,
+        model: AI.model, // Passed for proxy server to know which model to target
+        generationConfig: { maxOutputTokens: maxTokens },
+        systemInstruction,
+        contents,
       })
     );
   });

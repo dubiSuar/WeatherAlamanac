@@ -56,7 +56,7 @@ const devApiKey = AI_DEV_API_KEY || null;
 
 export const AI = {
   proxyUrl,
-  model: AI_MODEL || "claude-sonnet-5",
+  model: AI_MODEL || "gemini-3.5-flash-lite",
   devApiKey: __DEV__ ? devApiKey : null,
   mode: proxyUrl ? "proxy" : __DEV__ && devApiKey ? "direct" : "unconfigured",
 };

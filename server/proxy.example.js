@@ -1,5 +1,5 @@
 /**
- * Reference proxy for Almanac.
+ * Reference proxy for Almanac using the Gemini API.
  *
  * The app must not hold a provider API key — anyone with the binary can pull it
  * out of the bundle. This sits between them: the app POSTs a message payload,
@@ -7,7 +7,7 @@
  *
  * Zero dependencies, Node 18+ (needs global fetch and web streams).
  *
- *   ANTHROPIC_API_KEY=sk-ant-... node server/proxy.example.js
+ *   GEMINI_API_KEY=AIzaSy... node server/proxy.example.js
  *
  * Then point the app at it in .env:
  *
@@ -23,16 +23,14 @@
 const http = require("http");
 
 const PORT = process.env.PORT || 8787;
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const UPSTREAM = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
+const API_KEY = process.env.GEMINI_API_KEY;
 
 // Caps so a malformed or hostile client can't ask for an expensive generation.
 const MAX_TOKENS_CEILING = 1024;
 const MAX_BODY_BYTES = 64 * 1024;
 
 if (!API_KEY) {
-  console.error("ANTHROPIC_API_KEY is not set. Refusing to start.");
+  console.error("GEMINI_API_KEY is not set. Refusing to start.");
   process.exit(1);
 }
 
@@ -72,22 +70,27 @@ const server = http.createServer(async (req, res) => {
 
   // Rebuild the upstream request field by field rather than forwarding the
   // client's body wholesale — that way a client can't smuggle in extra
-  // parameters or a different model.
+  // parameters.
   const upstreamBody = {
-    model: payload.model,
-    system: payload.system,
-    messages: payload.messages,
-    max_tokens: Math.min(payload.max_tokens || 512, MAX_TOKENS_CEILING),
-    stream: true,
+    contents: payload.contents,
+    systemInstruction: payload.systemInstruction,
+    generationConfig: {
+      maxOutputTokens: Math.min(
+        payload.generationConfig?.maxOutputTokens || 512,
+        MAX_TOKENS_CEILING
+      ),
+    },
   };
+
+  const model = payload.model || "gemini-1.5-flash";
+  const UPSTREAM = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
   try {
     const upstream = await fetch(UPSTREAM, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
-        "anthropic-version": ANTHROPIC_VERSION,
+        "x-goog-api-key": API_KEY,
       },
       body: JSON.stringify(upstreamBody),
     });

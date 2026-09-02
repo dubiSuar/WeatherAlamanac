@@ -64,7 +64,7 @@ export function useWeatherChat({ weather, location, now, unit }) {
       const context = buildWeatherContext({ weather, location, now, unit });
       const handle = streamMessage({
         system: CHAT_SYSTEM,
-        maxTokens: 600,
+        maxTokens: 2000,
         messages: [...history, { role: "user", content: withContext(context, question) }],
         onDelta: (_chunk, full) => patch(replyId, { content: full, pending: false }),
       });

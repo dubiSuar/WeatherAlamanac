@@ -1,13 +1,30 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
 import AuthStack from "./AuthStack";
 import AppStack from "./AppStack";
+import { ONBOARDING_KEY } from "../screens/auth/OnboardingScreen";
 
 export default function RootNavigator() {
   const { user, initializing } = useAuth();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
-  if (initializing) {
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then((val) => {
+        setShowOnboarding(!val);
+        setOnboardingChecked(true);
+      })
+      .catch(() => {
+        // If AsyncStorage fails, skip onboarding to avoid blocking the user
+        setShowOnboarding(false);
+        setOnboardingChecked(true);
+      });
+  }, []);
+
+  if (initializing || !onboardingChecked) {
     return (
       // Matches the first colour stop of the auth gradient, so the handoff from
       // this screen to Login is a colour that's already there rather than a flash.
@@ -24,5 +41,9 @@ export default function RootNavigator() {
     );
   }
 
-  return user ? <AppStack /> : <AuthStack />;
+  if (user) return <AppStack />;
+
+  return (
+    <AuthStack initialRouteName={showOnboarding ? "Onboarding" : "Login"} />
+  );
 }

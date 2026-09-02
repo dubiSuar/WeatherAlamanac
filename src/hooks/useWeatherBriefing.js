@@ -79,7 +79,7 @@ export function useWeatherBriefing({ weather, location, now, unit, enabled = tru
       const context = buildWeatherContext({ weather, location, now, unit });
       const handle = streamMessage({
         system: BRIEFING_SYSTEM,
-        maxTokens: 400,
+        maxTokens: 1500,
         messages: [
           {
             role: "user",

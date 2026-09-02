@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import { initializeAuth, getAuth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FIREBASE_CONFIG, FIREBASE_READY } from "../config/env";
@@ -15,9 +15,15 @@ let app, authInstance, dbInstance;
 
 if (FIREBASE_READY) {
   app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
-  authInstance = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
+  // initializeAuth throws if called twice on the same app (e.g. on hot reload),
+  // so fall back to getAuth which always returns the existing instance.
+  try {
+    authInstance = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch {
+    authInstance = getAuth(app);
+  }
   dbInstance = getFirestore(app);
 } else {
   // Mock implementations for static UI testing

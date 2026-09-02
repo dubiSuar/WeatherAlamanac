@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1090334838157",
+    "project_id": "weatheralamanac",
+    "storage_bucket": "weatheralamanac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090334838157:android:a42f74990ae73a407581c4",
+        "android_client_info": {
+          "package_name": "com.weatheralmanac"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1090334838157-ohi2tsv91apl1l0ou6hk35o7uq4j66qj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.weatheralmanac",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1090334838157-09f2o7k395evjq7h7di4mecm931o1bkg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjL9UjvrjsSHXqD5nohdtjFVn4eziV-dY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1090334838157-09f2o7k395evjq7h7di4mecm931o1bkg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
