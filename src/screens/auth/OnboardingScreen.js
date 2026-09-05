@@ -6,12 +6,13 @@ import {
   Pressable,
   Dimensions,
   Animated,
+  useColorScheme,
+  StyleSheet,
 } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sun, CloudRain, Moon } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { TYPE, INK } from "../../theme/type";
+import { TYPE } from "../../theme/type";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -19,19 +20,16 @@ export const ONBOARDING_KEY = "onboarding_complete";
 
 const SLIDES = [
   {
-    colors: ["#1F6FD6", "#3E9BE0", "#7BC6E8", "#FCE2A0"],
     Icon: Sun,
     headline: "Your personal\nweather almanac",
     body: "Hourly forecasts, daily summaries, and real-feel conditions — all in one glance.",
   },
   {
-    colors: ["#0A1420", "#16232F", "#28374A", "#1F3247"],
     Icon: CloudRain,
     headline: "AI-powered\nweather chat",
     body: "Ask Almanac anything about today's forecast. It reads the same data you see on screen.",
   },
   {
-    colors: ["#050B22", "#0E1B44", "#1F2C63", "#3A2E63"],
     Icon: Moon,
     headline: "Built around\nyour location",
     body: "Automatic location detection or search any city in the world. Always up to date.",
@@ -50,6 +48,24 @@ export default function OnboardingScreen({ navigation }) {
   const scrollRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const isDark = useColorScheme() === "dark";
+
+  const theme = {
+    bg: isDark ? "#050B22" : "#F2F2F7",
+    primary: isDark ? "rgba(255,255,255,0.98)" : "#1C1C1E",
+    secondary: isDark ? "rgba(255,255,255,0.72)" : "#3A3A3C",
+    tertiary: isDark ? "rgba(255,255,255,0.50)" : "#8E8E93",
+    iconBg: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)",
+    iconBorder: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.1)",
+    dotActive: isDark ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.8)",
+    dotInactive: isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.2)",
+    btnBg: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+    btnBgPressed: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.12)",
+    btnBorder: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.1)",
+    doneBtnBg: isDark ? "rgba(255,255,255,0.95)" : "#000000",
+    doneBtnBgPressed: isDark ? "rgba(255,255,255,0.85)" : "#333333",
+    doneBtnText: isDark ? "#0E1B44" : "#FFFFFF",
+  };
 
   function handleScroll(e) {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -73,29 +89,7 @@ export default function OnboardingScreen({ navigation }) {
   const isLast = activeIndex === SLIDES.length - 1;
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Background — always match the active slide's gradient */}
-      {SLIDES.map((slide, i) => (
-        <Animated.View
-          key={i}
-          pointerEvents="none"
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            opacity: scrollX.interpolate({
-              inputRange: [
-                (i - 1) * SCREEN_WIDTH,
-                i * SCREEN_WIDTH,
-                (i + 1) * SCREEN_WIDTH,
-              ],
-              outputRange: [0, 1, 0],
-              extrapolate: "clamp",
-            }),
-          }}
-        >
-          <LinearGradient colors={slide.colors} style={{ flex: 1 }} />
-        </Animated.View>
-      ))}
-
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* Skip button */}
         {!isLast && (
@@ -104,7 +98,7 @@ export default function OnboardingScreen({ navigation }) {
             hitSlop={12}
             style={{ alignSelf: "flex-end", paddingHorizontal: 24, paddingTop: 12 }}
           >
-            <Text style={{ ...TYPE.callout, color: INK.tertiary }}>Skip</Text>
+            <Text style={{ ...TYPE.callout, color: theme.tertiary }}>Skip</Text>
           </Pressable>
         )}
         {isLast && <View style={{ height: 44 }} />}
@@ -123,7 +117,7 @@ export default function OnboardingScreen({ navigation }) {
           style={{ flex: 1 }}
         >
           {SLIDES.map((slide, i) => (
-            <Slide key={i} slide={slide} />
+            <Slide key={i} slide={slide} theme={theme} />
           ))}
         </Animated.ScrollView>
 
@@ -145,10 +139,7 @@ export default function OnboardingScreen({ navigation }) {
                     width: i === activeIndex ? 20 : 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor:
-                      i === activeIndex
-                        ? "rgba(255,255,255,0.95)"
-                        : "rgba(255,255,255,0.30)",
+                    backgroundColor: i === activeIndex ? theme.dotActive : theme.dotInactive,
                   }}
                 />
               </Pressable>
@@ -163,16 +154,14 @@ export default function OnboardingScreen({ navigation }) {
                 width: "100%",
                 paddingVertical: 16,
                 borderRadius: 14,
-                backgroundColor: pressed
-                  ? "rgba(255,255,255,0.85)"
-                  : "rgba(255,255,255,0.95)",
+                backgroundColor: pressed ? theme.doneBtnBgPressed : theme.doneBtnBg,
                 alignItems: "center",
               })}
             >
               <Text
                 style={{
                   ...TYPE.headline,
-                  color: "#0E1B44",
+                  color: theme.doneBtnText,
                 }}
               >
                 Get Started
@@ -185,15 +174,13 @@ export default function OnboardingScreen({ navigation }) {
                 width: "100%",
                 paddingVertical: 16,
                 borderRadius: 14,
-                backgroundColor: pressed
-                  ? "rgba(255,255,255,0.14)"
-                  : "rgba(255,255,255,0.12)",
+                backgroundColor: pressed ? theme.btnBgPressed : theme.btnBg,
                 borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.20)",
+                borderColor: theme.btnBorder,
                 alignItems: "center",
               })}
             >
-              <Text style={{ ...TYPE.headline, color: INK.primary }}>Next</Text>
+              <Text style={{ ...TYPE.headline, color: theme.primary }}>Next</Text>
             </Pressable>
           )}
         </View>
@@ -202,7 +189,7 @@ export default function OnboardingScreen({ navigation }) {
   );
 }
 
-function Slide({ slide }) {
+function Slide({ slide, theme }) {
   const { Icon, headline, body } = slide;
   return (
     <View
@@ -221,21 +208,21 @@ function Slide({ slide }) {
           width: 100,
           height: 100,
           borderRadius: 50,
-          backgroundColor: "rgba(255,255,255,0.12)",
+          backgroundColor: theme.iconBg,
           borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.18)",
+          borderColor: theme.iconBorder,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <Icon size={48} color="rgba(255,255,255,0.95)" strokeWidth={1.5} />
+        <Icon size={48} color={theme.primary} strokeWidth={1.5} />
       </View>
 
       <View style={{ gap: 12, alignItems: "center" }}>
         <Text
           style={{
             ...TYPE.display,
-            color: INK.primary,
+            color: theme.primary,
             textAlign: "center",
           }}
         >
@@ -244,7 +231,7 @@ function Slide({ slide }) {
         <Text
           style={{
             ...TYPE.body,
-            color: INK.secondary,
+            color: theme.secondary,
             textAlign: "center",
             lineHeight: 24,
           }}
@@ -255,6 +242,3 @@ function Slide({ slide }) {
     </View>
   );
 }
-
-// StyleSheet import is needed for absoluteFillObject
-import { StyleSheet } from "react-native";

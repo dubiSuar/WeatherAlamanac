@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, ScrollView, Animated, Linking } from "react-native";
+import { View, Text, Pressable, ScrollView, Animated, Linking, Alert } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, LogOut, Trash2, Check, ExternalLink } from "lucide-react-native";
@@ -14,6 +14,13 @@ const NIGHT = ["#050B22", "#0E1B44", "#1F2C63", "#3A2E63"];
 export default function SettingsScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { prefs, setUnit, toggleSaved } = usePreferences();
+
+  const handleLogout = () => {
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: logout },
+    ]);
+  };
 
   return (
     <LinearGradient colors={NIGHT} style={{ flex: 1 }}>
@@ -160,7 +167,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
 
               <Pressable
-                onPress={logout}
+                onPress={handleLogout}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",

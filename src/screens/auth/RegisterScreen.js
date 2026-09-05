@@ -89,7 +89,7 @@ export default function RegisterScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
         >
           <ScrollView
             contentContainerStyle={{

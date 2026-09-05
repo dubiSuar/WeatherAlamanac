@@ -16,7 +16,11 @@ GoogleSignin.configure({
  */
 export async function signInWithGoogle() {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const { idToken } = await GoogleSignin.signIn();
+  const response = await GoogleSignin.signIn();
+  if (response.type !== 'success') {
+    throw new Error('Google sign-in failed or was cancelled');
+  }
+  const { idToken } = response.data;
   const credential = GoogleAuthProvider.credential(idToken);
   return signInWithCredential(auth, credential);
 }

@@ -1,4 +1,5 @@
 import { AI } from "../config/env";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * Streaming client for the Gemini GenerateContent API.
@@ -84,7 +85,8 @@ function friendlyHttpError(status, body) {
  * line matters — a naive split on "\n" will hand you half a JSON object.
  */
 function drainSse(buffer, onDelta, state) {
-  const parts = buffer.split("\n\n");
+  const normalizedBuffer = buffer.replace(/\r\n/g, "\n");
+  const parts = normalizedBuffer.split("\n\n");
   const remainder = parts.pop() ?? "";
 
   for (const block of parts) {
@@ -229,14 +231,36 @@ export function streamMessage({ system, messages, maxTokens = 1024, onDelta }) {
     
     const systemInstruction = system ? { parts: [{ text: system }] } : undefined;
 
-    xhr.send(
-      JSON.stringify({
-        model: AI.model, // Passed for proxy server to know which model to target
-        generationConfig: { maxOutputTokens: maxTokens },
-        systemInstruction,
-        contents,
-      })
-    );
+    const payload = {
+      generationConfig: { maxOutputTokens: maxTokens },
+      systemInstruction,
+      contents,
+    };
+    if (AI.mode === "proxy") {
+      payload.model = AI.model;
+    }
+
+    const checkQuotaAndSend = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const key = `ai_usage_${today}`;
+        const current = await AsyncStorage.getItem(key);
+        const count = current ? parseInt(current, 10) : 0;
+        
+        if (count >= 20) {
+          throw new AiError("Daily AI usage limit reached (20). Please try again tomorrow.", { kind: "rate_limit" });
+        }
+        await AsyncStorage.setItem(key, (count + 1).toString());
+        
+        if (!cancelled) {
+          xhr.send(JSON.stringify(payload));
+        }
+      } catch (e) {
+        reject(e instanceof AiError ? e : new AiError("Failed to verify quota.", { kind: "unknown" }));
+      }
+    };
+
+    checkQuotaAndSend();
   });
 
   return {
