@@ -6,36 +6,9 @@ import { RotateCcw, MessageCircle, AlertCircle, Settings2 } from "lucide-react-n
 import { TYPE, INK, ACCENT } from "../../theme/type";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 
-/**
- * Skeleton that matches the shape of the text about to land in it — two full
- * lines and a short third — rather than a spinner. A spinner tells you to wait;
- * this tells you what's coming.
- *
- * Memoised and self-contained: the shimmer runs continuously, and if it lived
- * in the parent it would re-render the whole weather screen every frame.
- */
-const Shimmer = memo(function Shimmer() {
-  const reduced = useReducedMotion();
-  const x = useRef(new Animated.Value(-1)).current;
-
-  useEffect(() => {
-    if (reduced) return;
-    const loop = Animated.loop(
-      Animated.timing(x, {
-        toValue: 1,
-        duration: 1400,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => {
-      loop.stop();
-      x.setValue(-1);
-    };
-  }, [x, reduced]);
-
-  const Bar = ({ width }) => (
+/** One placeholder line. Module-level so React keeps it mounted between renders. */
+function ShimmerBar({ width, x, reduced }) {
+  return (
     <View
       style={{
         height: 13,
@@ -73,12 +46,42 @@ const Shimmer = memo(function Shimmer() {
       )}
     </View>
   );
+}
+
+/**
+ * Skeleton that matches the shape of the text about to land in it — two full
+ * lines and a short third — rather than a spinner. A spinner tells you to wait;
+ * this tells you what's coming.
+ *
+ * Memoised and self-contained: the shimmer runs continuously, and if it lived
+ * in the parent it would re-render the whole weather screen every frame.
+ */
+const Shimmer = memo(function Shimmer() {
+  const reduced = useReducedMotion();
+  const x = useRef(new Animated.Value(-1)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(
+      Animated.timing(x, {
+        toValue: 1,
+        duration: 1400,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      x.setValue(-1);
+    };
+  }, [x, reduced]);
 
   return (
     <View style={{ gap: 9, paddingTop: 3 }}>
-      <Bar width="94%" />
-      <Bar width="100%" />
-      <Bar width="58%" />
+      <ShimmerBar width="94%" x={x} reduced={reduced} />
+      <ShimmerBar width="100%" x={x} reduced={reduced} />
+      <ShimmerBar width="58%" x={x} reduced={reduced} />
     </View>
   );
 });

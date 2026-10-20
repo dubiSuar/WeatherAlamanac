@@ -102,23 +102,13 @@ bundle lets Android try to restore Fragment state that no longer exists.
 **If skipped:** the app crashes on rotation or when returning from the
 background.
 
-### 3. Google Services plugin
+### 3. Google Services plugin: not needed
 
-Put `google-services.json` (Firebase → your Android app) at
-`android/app/google-services.json`.
-
-`android/build.gradle` — in `buildscript { dependencies { ... } }`:
-
-```gradle
-classpath("com.google.gms:google-services:4.4.2")
-```
-
-`android/app/build.gradle` — at the top, after the existing `apply plugin`
-lines:
-
-```gradle
-apply plugin: "com.google.gms.google-services"
-```
+This app uses the Firebase **JS** SDK (configured from `.env`) and passes the
+web client ID to Google Sign-In directly, so neither reads
+`google-services.json`. Don't add the `com.google.gms.google-services` Gradle
+plugin; you only need it if you switch to `@react-native-firebase`.
+`google-services.json` is gitignored either way.
 
 ### 4. SHA-1 fingerprint — the one everybody misses
 
@@ -130,8 +120,7 @@ cd android && ./gradlew signingReport
 ```
 
 Copy the `SHA1` under `Variant: debug`, then add it in Firebase → Project
-settings → your Android app → Add fingerprint. Re-download
-`google-services.json` afterwards.
+settings → your Android app → Add fingerprint.
 
 **If skipped:** sign-in fails with `DEVELOPER_ERROR` and nothing more
 specific. You need to repeat this for your release keystore, and again for

@@ -7,6 +7,25 @@ let seq = 0;
 const nextId = () => `m${++seq}`;
 
 /**
+ * The turns worth sending back to the model: each user question that got an
+ * answer, plus that answer. A question whose reply failed or was stopped
+ * before any text is dropped, otherwise the model sees two user turns in a row
+ * and the failed question gets asked again alongside the new one.
+ */
+export function answeredTurns(messages) {
+  const out = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    const next = messages[i + 1];
+    if (m.role === "user" && next?.role === "assistant" && next.content) {
+      out.push(m, next);
+      i++;
+    }
+  }
+  return out;
+}
+
+/**
  * Conversation over the current forecast.
  *
  * The context block is attached to the newest user turn only, never to the
@@ -18,6 +37,10 @@ const nextId = () => `m${++seq}`;
  */
 export function useWeatherChat({ weather, location, now, unit }) {
   const [messages, setMessages] = useState([]);
+  // send() reads history from here rather than from `messages`, so it never
+  // works from a stale render (retry() trims the list right before sending).
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(null);
   const inFlight = useRef(null);
@@ -49,8 +72,7 @@ export function useWeatherChat({ weather, location, now, unit }) {
 
       const userMsg = { id: nextId(), role: "user", content: question };
       const replyId = nextId();
-      const history = messages
-        .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
+      const history = answeredTurns(messagesRef.current)
         .slice(-MAX_TURNS)
         .map((m) => ({ role: m.role, content: m.content }));
 
@@ -88,7 +110,7 @@ export function useWeatherChat({ weather, location, now, unit }) {
         setStreaming(false);
       }
     },
-    [messages, streaming, weather, location, now, unit, patch]
+    [streaming, weather, location, now, unit, patch]
   );
 
   const stop = useCallback(() => inFlight.current?.cancel(), []);
@@ -96,12 +118,14 @@ export function useWeatherChat({ weather, location, now, unit }) {
   const retry = useCallback(() => {
     const prompt = lastPrompt.current;
     if (!prompt) return;
-    // Drop the failed user turn so the retry doesn't duplicate it.
-    setMessages((prev) => {
-      const idx = prev.map((m) => m.content).lastIndexOf(prompt);
-      return idx === -1 ? prev : prev.slice(0, idx);
-    });
-    setTimeout(() => send(prompt), 0);
+    // Drop the failed user turn so the retry doesn't duplicate it. Update the
+    // ref too, so send() sees the trimmed list without waiting for a render.
+    const prev = messagesRef.current;
+    const idx = prev.map((m) => m.content).lastIndexOf(prompt);
+    const trimmed = idx === -1 ? prev : prev.slice(0, idx);
+    messagesRef.current = trimmed;
+    setMessages(trimmed);
+    send(prompt);
   }, [send]);
 
   const clear = useCallback(() => {
@@ -110,7 +134,9 @@ export function useWeatherChat({ weather, location, now, unit }) {
     setError(null);
   }, []);
 
+  const dismissError = useCallback(() => setError(null), []);
+
   useEffect(() => () => inFlight.current?.cancel(), []);
 
-  return { messages, send, stop, retry, clear, streaming, error, dismissError: () => setError(null) };
+  return { messages, send, stop, retry, clear, streaming, error, dismissError };
 }

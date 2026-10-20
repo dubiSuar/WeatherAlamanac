@@ -135,13 +135,10 @@ export default function AskSheet({
           onClose();
         },
       });
-      // Fire the close immediately for reduced motion, where there's no travel.
-      if (reduced) {
-        setRendered(false);
-        onClose();
-      }
+      // No reduced-motion branch needed: animateTo jumps and calls onDone
+      // synchronously in that case.
     },
-    [animateTo, SHEET_HEIGHT, onClose, chat, reduced]
+    [animateTo, SHEET_HEIGHT, onClose, chat]
   );
 
   // ------------------------------------------------------------------ gestures
@@ -293,7 +290,7 @@ export default function AskSheet({
 
             <KeyboardAvoidingView
               style={{ flex: 1 }}
-              behavior={Platform.OS === "ios" ? "padding" : "padding"}
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
               {/* ------------------------------------------------- drag handle */}
               <View {...pan.panHandlers} style={{ paddingTop: 10, paddingHorizontal: 20 }}>

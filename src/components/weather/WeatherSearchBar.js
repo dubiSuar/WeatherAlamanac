@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Search, Navigation, MapPin, X, Star } from "lucide-react-native";
 import { TYPE, INK, ACCENT } from "../../theme/type";
+import { fetchWithTimeout } from "../../utils/http";
 
 /**
  * Search, current-location, and saved cities in one control.
@@ -30,6 +31,7 @@ export default function WeatherSearchBar({
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   const [noResults, setNoResults] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
   const reveal = useRef(new Animated.Value(0)).current;
@@ -53,28 +55,42 @@ export default function WeatherSearchBar({
     if (trimmed.length < 2) {
       setSuggestions([]);
       setNoResults(false);
+      setSearchFailed(false);
       return;
     }
+    // Aborted when the query changes or the component unmounts, so a slow
+    // response for "Par" can never overwrite the results for "Paris".
+    const controller = new AbortController();
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
+      setSearchFailed(false);
       try {
-        const res = await fetch(
+        const res = await fetchWithTimeout(
           `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
             trimmed
-          )}&count=6&language=en&format=json`
+          )}&count=6&language=en&format=json`,
+          { signal: controller.signal }
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const results = data.results || [];
         setSuggestions(results);
         setNoResults(results.length === 0);
       } catch {
+        if (controller.signal.aborted) return;
+        // A failed request is not the same as "no such place"; say which.
         setSuggestions([]);
         setNoResults(true);
+        setSearchFailed(true);
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 280);
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      clearTimeout(debounceRef.current);
+      controller.abort();
+      setSearching(false);
+    };
   }, [trimmed]);
 
   function pick(result) {
@@ -214,10 +230,12 @@ export default function WeatherSearchBar({
           {showResults && noResults && (
             <View style={{ paddingHorizontal: 15, paddingVertical: 16, gap: 3 }}>
               <Text style={{ ...TYPE.callout, color: INK.primary }}>
-                No place called “{trimmed}”
+                {searchFailed ? "Couldn't search right now" : `No place called “${trimmed}”`}
               </Text>
               <Text style={{ ...TYPE.caption, color: INK.tertiary }}>
-                Try the city on its own, without the country.
+                {searchFailed
+                  ? "Check your connection and try again."
+                  : "Try the city on its own, without the country."}
               </Text>
             </View>
           )}

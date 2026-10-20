@@ -108,7 +108,18 @@ export function useWeatherBriefing({ weather, location, now, unit, enabled = tru
   // Deliberately keyed on the cache inputs rather than on `weather`: the
   // forecast object is replaced by every poll and refresh, and depending on it
   // directly would retrigger generation constantly.
-  const key = weather && location ? cacheKey({ location, unit, now }) : null;
+  //
+  // Right after a city change, `location` is already the new city while
+  // `weather` still holds the old one until the new fetch lands. Generating
+  // then would describe the old city's weather under the new name and cache
+  // it, so wait until the forecast's coordinates match. Open-Meteo snaps to
+  // its grid, hence the tolerance rather than strict equality.
+  const matches =
+    weather &&
+    location &&
+    Math.abs(weather.latitude - location.latitude) < 0.25 &&
+    Math.abs(weather.longitude - location.longitude) < 0.25;
+  const key = matches ? cacheKey({ location, unit, now }) : null;
   useEffect(() => {
     if (!enabled || !key) return;
     run();

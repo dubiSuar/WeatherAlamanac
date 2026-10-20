@@ -2,12 +2,11 @@ import React, { useRef, useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   Dimensions,
   Animated,
   useColorScheme,
-  StyleSheet,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sun, CloudRain, Moon } from "lucide-react-native";
@@ -76,12 +75,8 @@ export default function OnboardingScreen({ navigation }) {
     scrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: true });
   }
 
-  async function handleDone() {
-    await markSeen();
-    navigation.replace("Login");
-  }
-
-  async function handleSkip() {
+  // "Get Started" and "Skip" both end onboarding the same way.
+  async function finish() {
     await markSeen();
     navigation.replace("Login");
   }
@@ -90,11 +85,14 @@ export default function OnboardingScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {/* App.js sets light-content globally for the dark weather screens; this
+          is the one screen that can be light. */}
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <SafeAreaView style={{ flex: 1 }}>
         {/* Skip button */}
         {!isLast && (
           <Pressable
-            onPress={handleSkip}
+            onPress={finish}
             hitSlop={12}
             style={{ alignSelf: "flex-end", paddingHorizontal: 24, paddingTop: 12 }}
           >
@@ -149,7 +147,7 @@ export default function OnboardingScreen({ navigation }) {
           {/* CTA */}
           {isLast ? (
             <Pressable
-              onPress={handleDone}
+              onPress={finish}
               style={({ pressed }) => ({
                 width: "100%",
                 paddingVertical: 16,

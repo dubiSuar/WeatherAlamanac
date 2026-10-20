@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { localDateFromOffset } from "../utils/format";
+import { fetchWithTimeout } from "../utils/http";
+
+// Refetch on return to the foreground once the forecast is this old.
+const STALE_AFTER_MS = 20 * 60 * 1000;
 
 const CURRENT_FIELDS = [
   "temperature_2m",
@@ -57,6 +62,7 @@ export function useWeather(location) {
   // Guards against a slow request for a previous city landing after a newer
   // one and overwriting the screen with stale weather.
   const requestId = useRef(0);
+  const fetchedAt = useRef(0);
 
   const fetchWeather = useCallback(async (loc, { silent = false } = {}) => {
     const id = ++requestId.current;
@@ -64,12 +70,13 @@ export function useWeather(location) {
     else setLoading(true);
     setError("");
     try {
-      const res = await fetch(forecastUrl(loc));
+      const res = await fetchWithTimeout(forecastUrl(loc));
       if (!res.ok) throw new Error("network");
       const data = await res.json();
       if (!data.current) throw new Error("shape");
       if (id !== requestId.current) return;
       setWeather(data);
+      fetchedAt.current = Date.now();
       setNow(localDateFromOffset(data.utc_offset_seconds));
     } catch {
       if (id !== requestId.current) return;
@@ -95,6 +102,19 @@ export function useWeather(location) {
     );
     return () => clearInterval(id);
   }, [weather]);
+
+  // Nothing polls while the app is open, so a phone left in a pocket for a few
+  // hours would come back to an old forecast. Refresh quietly when the app
+  // returns to the foreground with stale data.
+  useEffect(() => {
+    if (!location) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && Date.now() - fetchedAt.current > STALE_AFTER_MS) {
+        fetchWeather(location, { silent: true });
+      }
+    });
+    return () => sub.remove();
+  }, [location, fetchWeather]);
 
   const refetch = useCallback(
     (opts) => location && fetchWeather(location, opts),

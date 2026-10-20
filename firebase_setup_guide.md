@@ -44,19 +44,20 @@ Google Sign-In on Android requires a registered Android app and a matching SHA-1
    ```
    com.weatheralmanac
    ```
-3. For **Debug signing certificate SHA-1**, enter your pre-extracted fingerprint:
+3. For **Debug signing certificate SHA-1**, run `cd android && ./gradlew signingReport`
+   and copy the `SHA1` line under `Variant: debug`. With the debug keystore that
+   ships in this repo it is:
    ```
    5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25
    ```
    > [!TIP]
-   > You can also add the second SHA-1 (`55:81:70:73:DC:D3:00:76:8B:EE:CC:82:7B:A9:7B:66:C8:92:25:3E`) to Firebase as well — it won't hurt and covers both keystores.
+   > When you create a release keystore (README → Building a release APK), come
+   > back and add its SHA-1 too, or Google sign-in fails in the release APK.
 4. Click **Register app**.
-5. On the next screen, click **Download google-services.json**.
-6. Move the downloaded file to this exact path in your project:
-   ```
-   e:\01 GITHUB REPOS\WeatherAlmanac\android\app\google-services.json
-   ```
-7. Click **Next → Next → Continue to console** (no code changes needed; the project already has the Google Services plugin set up).
+5. Skip the **Download google-services.json** step: click **Next → Next →
+   Continue to console**. This app uses the Firebase JS SDK, configured from
+   `.env`, so it doesn't need that file. (If you download it anyway, it is
+   gitignored; never commit it.)
 
 ---
 
@@ -140,7 +141,6 @@ npm run android
 - [ ] Firebase project created
 - [ ] Web app registered → `.env` filled in with Firebase config
 - [ ] Android app registered with SHA-1 fingerprint
-- [ ] `google-services.json` placed in `android/app/`
 - [ ] Email/Password sign-in enabled in Firebase Auth
 - [ ] Google Sign-In enabled in Firebase Auth
 - [ ] `GOOGLE_WEB_CLIENT_ID` filled in `.env`

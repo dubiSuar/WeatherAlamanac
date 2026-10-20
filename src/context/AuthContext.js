@@ -5,10 +5,11 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  getAdditionalUserInfo,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
-import { signInWithGoogle, signOutGoogle } from "../firebase/googleAuth";
+import { signInWithGoogle, signOutGoogle, googleErrorCode } from "../firebase/googleAuth";
 
 const AuthContext = createContext(null);
 
@@ -39,8 +40,8 @@ export function AuthProvider({ children }) {
       if (name) {
         await updateProfile(cred.user, { displayName: name });
       }
-      // Store a user profile doc - TODO(antigravity): extend with
-      // preferences (default city, units) as the app grows.
+      // Store a user profile doc. A natural next step for students: sync
+      // preferences (default city, units) here too.
       await setDoc(doc(db, "users", cred.user.uid), {
         uid: cred.user.uid,
         name: name || "",
@@ -70,19 +71,25 @@ export function AuthProvider({ children }) {
     try {
       const cred = await signInWithGoogle();
       // Upsert profile doc so Google users also have a users/{uid} record.
+      // createdAt is written only on the first sign-in; merging it every time
+      // would overwrite the real account creation date.
+      const isNewUser = getAdditionalUserInfo(cred)?.isNewUser;
       await setDoc(
         doc(db, "users", cred.user.uid),
         {
           uid: cred.user.uid,
           name: cred.user.displayName || "",
           email: cred.user.email || "",
-          createdAt: serverTimestamp(),
+          ...(isNewUser ? { createdAt: serverTimestamp() } : {}),
         },
         { merge: true }
       );
       return cred.user;
     } catch (e) {
-      setAuthError(mapFirebaseError(e));
+      const code = googleErrorCode(e);
+      // Closing the account picker is a choice, not a failure.
+      if (code === "google/cancelled") return null;
+      setAuthError(mapFirebaseError({ code }));
       throw e;
     }
   }
@@ -115,5 +122,11 @@ function mapFirebaseError(e) {
   if (code.includes("user-not-found") || code.includes("wrong-password") || code.includes("invalid-credential"))
     return "Incorrect email or password.";
   if (code.includes("network-request-failed")) return "Network error. Check your connection.";
+  if (code === "google/in-progress") return "Google sign-in is already open.";
+  if (code === "google/no-play-services") return "Google Play services is unavailable on this device.";
+  if (code === "google/not-configured")
+    return "Google sign-in is not set up in this build. Use email and password instead.";
+  if (code === "google/developer-error")
+    return "Google sign-in is misconfigured for this build (signing key not registered in Firebase).";
   return "Something went wrong. Please try again.";
 }

@@ -92,15 +92,30 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Real release key. Values come from ~/.gradle/gradle.properties (never this repo).
+        // See README "Building a release APK" and https://reactnative.dev/docs/signed-apk-android.
+        if (project.hasProperty('WEATHERALMANAC_UPLOAD_STORE_FILE')) {
+            release {
+                storeFile file(WEATHERALMANAC_UPLOAD_STORE_FILE)
+                storePassword WEATHERALMANAC_UPLOAD_STORE_PASSWORD
+                keyAlias WEATHERALMANAC_UPLOAD_KEY_ALIAS
+                keyPassword WEATHERALMANAC_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Falls back to the public debug key so a fresh clone still builds. An APK signed
+            // that way is fine for classroom testing but must not be distributed widely.
+            if (signingConfigs.findByName('release') != null) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("WeatherAlmanac: no release keystore configured, signing release with the DEBUG key.")
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

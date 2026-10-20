@@ -24,6 +24,12 @@ export default function RootNavigator() {
       });
   }, []);
 
+  // The flag above is read once at launch. Anyone who has signed in is past
+  // onboarding, so a later logout should land on Login, not replay the slides.
+  useEffect(() => {
+    if (user) setShowOnboarding(false);
+  }, [user]);
+
   if (initializing || !onboardingChecked) {
     return (
       // Matches the first colour stop of the auth gradient, so the handoff from

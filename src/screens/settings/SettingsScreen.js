@@ -129,13 +129,13 @@ export default function SettingsScreen({ navigation }) {
 
               <Text style={{ ...TYPE.footnote, color: INK.tertiary }}>
                 {AI.mode === "unconfigured"
-                  ? "Set AI_PROXY_URL in .env to a server that forwards to the Messages API, then restart the bundler with a cleared cache."
+                  ? "Set AI_PROXY_URL in .env to a server that forwards to the Gemini API (see server/proxy.example.js), then rebuild."
                   : AI.mode === "direct"
                   ? "The API key is embedded in this build. Fine on your own device, but move to a proxy before you distribute it — anyone with the binary can extract the key."
-                  : `Requests go to your endpoint, which holds the key. Model: ${AI.model}.`}
+                  : "Requests go to your endpoint, which holds the key and chooses the model."}
               </Text>
 
-              <Row label="Model" value={AI.model} />
+              <Row label="Model" value={AI.mode === "proxy" ? "Chosen by your proxy" : AI.model} />
               <Row
                 label="Sees"
                 value="Current conditions, next 12 hours, next 5 days"
@@ -143,11 +143,11 @@ export default function SettingsScreen({ navigation }) {
               <Row label="Doesn't see" value="Air quality, pollen, official warnings" />
 
               <Pressable
-                onPress={() => Linking.openURL("https://docs.claude.com/en/api/overview")}
+                onPress={() => Linking.openURL("https://ai.google.dev/gemini-api/docs")}
                 style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 4 }}
               >
                 <Text style={{ ...TYPE.footnote, color: ACCENT, fontWeight: "600" }}>
-                  Messages API reference
+                  Gemini API reference
                 </Text>
                 <ExternalLink size={12} color={ACCENT} strokeWidth={2} />
               </Pressable>

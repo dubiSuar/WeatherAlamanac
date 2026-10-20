@@ -76,7 +76,9 @@ function friendlyHttpError(status, body) {
       kind: "server",
       status,
     });
-  return new AiError(detail || `Request failed (${status}).`, { kind: "unknown", status });
+  // Provider error text is written for developers; log it, show something plain.
+  if (__DEV__ && detail) console.warn("[Almanac] request failed:", status, detail);
+  return new AiError(`The assistant couldn't answer (error ${status}).`, { kind: "unknown", status });
 }
 
 /**
@@ -166,8 +168,13 @@ export function streamMessage({ system, messages, maxTokens = 1024, onDelta }) {
 
   const xhr = new XMLHttpRequest();
   let cancelled = false;
+  // Kept so cancel() can settle the promise itself. If cancel() runs while the
+  // quota check is still awaiting AsyncStorage, the XHR was never sent, so
+  // abort() fires no event and the caller would wait forever.
+  let rejectPromise = () => {};
 
   const promise = new Promise((resolve, reject) => {
+    rejectPromise = reject;
     const state = { text: "", stopReason: null, error: null };
     let seen = 0;
     let buffer = "";
@@ -236,10 +243,10 @@ export function streamMessage({ system, messages, maxTokens = 1024, onDelta }) {
       systemInstruction,
       contents,
     };
-    if (AI.mode === "proxy") {
-      payload.model = AI.model;
-    }
 
+    // A per-device courtesy limit so one student can't burn through a shared
+    // key by accident. It is NOT a security control (clearing app data resets
+    // it); the real limit lives in the proxy.
     const checkQuotaAndSend = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -266,7 +273,11 @@ export function streamMessage({ system, messages, maxTokens = 1024, onDelta }) {
   return {
     promise,
     cancel: () => {
+      if (cancelled) return;
       cancelled = true;
+      // Settles the promise even when the request was never sent. A second
+      // reject from onabort is a no-op.
+      rejectPromise(new AiError("Cancelled.", { kind: "aborted" }));
       try {
         xhr.abort();
       } catch {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Platform, PermissionsAndroid } from "react-native";
 import Geolocation from "@react-native-community/geolocation";
+import { fetchWithTimeout } from "../utils/http";
 
 // Configured once at module load. `auto` lets iOS pick the native
 // CLLocationManager path and keeps requestAuthorization working.
@@ -24,16 +25,18 @@ const PERMISSION = "PERMISSION";
  */
 async function ensurePermission() {
   if (Platform.OS === "android") {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: "Use your location",
-        message: "Weather uses your location to show local conditions.",
-        buttonPositive: "Allow",
-        buttonNegative: "Not now",
-      }
+    // Ask for both: since Android 12 the user can pick "Approximate", which
+    // grants COARSE only. That is plenty for a weather grid cell, so either
+    // grant counts.
+    const { ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION } = PermissionsAndroid.PERMISSIONS;
+    const result = await PermissionsAndroid.requestMultiple([
+      ACCESS_FINE_LOCATION,
+      ACCESS_COARSE_LOCATION,
+    ]);
+    const granted = [ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION].some(
+      (p) => result[p] === PermissionsAndroid.RESULTS.GRANTED
     );
-    if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+    if (!granted) {
       throw Object.assign(new Error("permission"), { friendly: PERMISSION });
     }
     return;
@@ -72,9 +75,10 @@ export function useCurrentLocation() {
       let admin1 = "";
       let country = "";
       try {
-        const res = await fetch(
+        const res = await fetchWithTimeout(
           `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         name = data.city || data.locality || "Current location";
         admin1 = data.principalSubdivision || "";
